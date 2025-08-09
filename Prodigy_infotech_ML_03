@@ -1,0 +1,73 @@
+# Step 1: Import libraries
+import os
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, classification_report
+import random
+
+# Step 2: Load and preprocess images
+def load_images(folder_path, label):
+    data = []
+    for file in os.listdir(folder_path):
+        try:
+            img_path = os.path.join(folder_path, file)
+            img = cv2.imread(img_path)  # ✅ now in color
+            img = cv2.resize(img, (64, 64))
+            data.append((img.flatten(), label, img_path))
+        except:
+            continue
+    return data
+
+# Load both classes
+cat_data = load_images("cats_set", 0)  # 0 = cat
+dog_data = load_images("dogs_set", 1)  # 1 = dog
+
+# Combine and shuffle
+all_data = cat_data + dog_data
+random.shuffle(all_data)
+
+# Split into X (features), y (labels), and image paths
+X = np.array([i[0] for i in all_data])
+y = np.array([i[1] for i in all_data])
+image_paths = [i[2] for i in all_data]
+
+# Step 3: Split into train/test
+X_train, X_test, y_train, y_test, path_train, path_test = train_test_split(
+    X, y, image_paths, test_size=0.2, random_state=42
+)
+
+# Step 4: Train the SVM model
+model = SVC(kernel='rbf')
+model.fit(X_train, y_train)
+
+# Step 5: Predict
+y_pred = model.predict(X_test)
+
+# Step 6: Evaluation
+accuracy = accuracy_score(y_test, y_pred)
+print("✅ Model Trained!")
+print("🎯 Accuracy:", accuracy)
+print("\nClassification Report:\n", classification_report(y_test, y_pred, target_names=['Cat', 'Dog']))
+
+# Step 7: Visualize sample predictions
+def show_predictions(X_test, y_test, y_pred, paths, num_images=6):
+    plt.figure(figsize=(12, 6))
+    indices = random.sample(range(len(X_test)), num_images)
+    for i, idx in enumerate(indices):
+        img = cv2.imread(paths[idx])
+        img = cv2.resize(img, (128, 128))
+        plt.subplot(2, 3, i+1)
+        plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        actual = "Cat" if y_test[idx] == 0 else "Dog"
+        predicted = "Cat" if y_pred[idx] == 0 else "Dog"
+        color = "green" if actual == predicted else "red"
+        plt.title(f"Actual: {actual}\nPredicted: {predicted}", color=color)
+        plt.axis("off")
+    plt.tight_layout()
+    plt.savefig("Predictions_output.png")
+    plt.show()
+
+show_predictions(X_test, y_test, y_pred, path_test)
